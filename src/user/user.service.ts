@@ -37,8 +37,13 @@ export class UserService {
         statusCode: HttpStatus.CONFLICT,
       });
     }
-    const newUser = new this.UserModel(user);
-    return newUser.save();
+    let newUser = new this.UserModel(user);
+    newUser = await newUser.save();
+    const trimmedUser = pick(newUser, ['_id', 'fullName', 'email']);
+    return {
+      ...this.createAccessToken(trimmedUser),
+      user: trimmedUser,
+    };
   }
 
   async loginUser(user: LoginUserDto) {
@@ -56,7 +61,6 @@ export class UserService {
         statusCode: HttpStatus.NOT_FOUND,
       });
     }
-    console.log(this.createAccessToken(verifiedUser));
     return {
       ...this.createAccessToken(verifiedUser),
       user: pick(verifiedUser, ['_id', 'fullName', 'email']),
