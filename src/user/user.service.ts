@@ -4,7 +4,7 @@ import { Model } from 'mongoose';
 import { pick } from 'lodash';
 import { sign, SignOptions, verify } from 'jsonwebtoken';
 import { v4 as UUID } from 'uuid';
-import { User } from './user.interface';
+import { User } from './user';
 import { CreateUserDto, LoginUserDto } from './user.dto';
 import { randomBytes } from 'crypto';
 import { ExtractJwt } from 'passport-jwt';
@@ -24,6 +24,7 @@ export class UserService {
     this.jwtOptions = { expiresIn: this.expiresInDefault };
     this.jwtKey = process.env.JWT_SECRET;
   }
+
   async findUser(param: CreateUserDto) {
     return await this.UserModel.findOne(param);
   }
@@ -55,7 +56,7 @@ export class UserService {
         statusCode: HttpStatus.NOT_FOUND,
       });
     }
-    console.log(this.createAccessToken(verifiedUser))
+    console.log(this.createAccessToken(verifiedUser));
     return {
       ...this.createAccessToken(verifiedUser),
       user: pick(verifiedUser, ['_id', 'fullName', 'email']),
@@ -63,27 +64,32 @@ export class UserService {
   }
 
   validateUser(payload: LoginUserDto, user: Model<User>): Promise<any> {
-    console.log(payload, user)
     if (ComparePassword(payload.password, user.password)) {
       return pick(user, ['_id', 'fullName', 'email']);
     }
     return null;
   }
 
+  // async validatePayload(payload: any | any): Promise<any> {
+  //   console.log(payload);
+  //   const token =
+  //     ExtractJwt.fromAuthHeaderAsBearerToken()(payload) ||
+  //     ExtractJwt.fromUrlQueryParameter('access_token')(payload);
+  //   const tokenBlacklisted = await this.isBlackListed(payload.sub, payload.exp);
+  //   if (!tokenBlacklisted) {
+  //     const result = await this.decodeAndValidateJWT(token);
+  //     return {
+  //       id: result.sub,
+  //       role: result.role,
+  //       email: result.email,
+  //     };
+  //   }
+  //   return null;
+  // }
+
   async validatePayload(payload: any | any): Promise<any> {
-    const token =
-      ExtractJwt.fromAuthHeaderAsBearerToken()(payload) ||
-      ExtractJwt.fromUrlQueryParameter('access_token')(payload);
-    const tokenBlacklisted = await this.isBlackListed(payload.sub, payload.exp);
-    if (!tokenBlacklisted) {
-      const result = await this.decodeAndValidateJWT(token);
-      return {
-        id: result.sub,
-        role: result.role,
-        email: result.email,
-      };
-    }
-    return null;
+    const user = await this.findUser(pick(payload, ['email']));
+    return !user ? null : pick(user, ['_id', 'email', 'fullName', 'createdAt', 'updatedAt'])
   }
 
   async decodeAndValidateJWT(token: string): Promise<any> {
@@ -106,10 +112,7 @@ export class UserService {
     }) as any;
   }
 
-  createAccessToken(
-    payload: any,
-    expires = this.expiresInDefault,
-  ): any {
+  createAccessToken(payload: any, expires = this.expiresInDefault): any {
     const options = this.jwtOptions;
     expires > 0 ? (options.expiresIn = expires) : delete options.expiresIn;
     options.jwtid = UUID();
