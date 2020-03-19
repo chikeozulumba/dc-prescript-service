@@ -19,7 +19,6 @@ export class UserController {
   }
 
   @Post('login')
-  // @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.ACCEPTED)
   async LoginUser(
     @Body(new JoiValidationPipe(loginSchema)) body: LoginUserDto,
